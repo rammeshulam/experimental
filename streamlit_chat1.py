@@ -1,6 +1,7 @@
 import openai
 import streamlit as st
 
+openai_api_key = st.secrets["openai_api_key"]
 with st.sidebar:
     "Ram's experimental chat 1"
 
