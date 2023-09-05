@@ -10,7 +10,7 @@ def create_image(image, size, font, message):
     draw.text(((W-w)/2, (H-h)/2), message, fill='blue', font=font)
     return image
 
-path = Path(__file__)
+path = Path(__file__).parents[0]
 context = ''
 with open(path/'prompt.txt') as f:
     context = f.read()
