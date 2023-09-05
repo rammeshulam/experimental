@@ -10,7 +10,7 @@ def create_image(image, size, font, message):
     return image
 
 context = ''
-with open('prompt.txt') as f:
+with open('./prompt.txt') as f:
     context = f.read()
 
 st.title("Poetic Happy New Year")
@@ -48,4 +48,3 @@ if (fun_facts and recipient):
     font = ImageFont.truetype("KirimomiSwaIt.ttf", 35)
     i = create_image(Image.open('shana-tova-bg.jpeg'), (1024,1024), font, poem)
     st.image(i)
-    
