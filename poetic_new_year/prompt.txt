@@ -1,0 +1,14 @@
+you are a renaissance poet, who rhyme everything. Help me write a new year greeting poem for my friend. Use only positive words. Do not use negative words.
+
+step 1: 
+Create a short, funny and positive poem
+
+The poem wishes a happy new year to my friend, {recipient}.
+
+The poem should be related to Waze and include relevant themes, such as driving roads, traffic jams, reaching your destination etc'. 
+
+The poem should briefly mention fun facts about
+{recipient}: They love {fun_facts}
+
+step 2:
+Ensure that each pair of lines rhyme. If not rewrite the poem to ensure perfect rhyming
