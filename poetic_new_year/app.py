@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as palm
 from PIL import Image, ImageDraw, ImageFont
+from pathlib import Path
 
 def create_image(image, size, font, message):
     W, H = size
@@ -9,8 +10,9 @@ def create_image(image, size, font, message):
     draw.text(((W-w)/2, (H-h)/2), message, fill='blue', font=font)
     return image
 
+path = Path(__file__)
 context = ''
-with open('./prompt.txt') as f:
+with open(path/'prompt.txt') as f:
     context = f.read()
 
 st.title("Poetic Happy New Year")
