@@ -47,6 +47,6 @@ if (fun_facts and recipient):
     
     poem = response.result.replace('\n','\n\n')
 
-    font = ImageFont.truetype(path/"KirimomiSwaIt.ttf", 35)
-    i = create_image(Image.open(path/'shana-tova-bg.jpeg'), (1024,1024), font, poem)
+    font = ImageFont.truetype(path/"KirimomiSwaIt.ttf"..resolve(), 35)
+    i = create_image(Image.open(path/'shana-tova-bg.jpeg'.resolve()), (1024,1024), font, poem)
     st.image(i)
