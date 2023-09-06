@@ -27,7 +27,8 @@ with st.form("greeting_input", clear_on_submit=False):
     st.markdown("4-5 things they love. They love... ")
     fun_facts = st.text_input(
         label="Complete the sentence: They love...",
-        placeholder="develop code, go to the beach, pizza, their dog Jessica and reading books",
+        placeholder="develop code, go to the beach, \
+        pizza, their dog Jessica and reading books",
         label_visibility="collapsed"
     )
 
@@ -47,6 +48,7 @@ if (fun_facts and recipient):
     
     poem = response.result.replace('\n','\n\n')
 
-    font = ImageFont.truetype(str(path/"KirimomiSwaIt.ttf"), 35)
+    #font = ImageFont.truetype(str(path/"KirimomiSwaIt.ttf"), 35)
+    font = ImageFont.truetype("./KirimomiSwaIt.ttf", 35)
     i = create_image(Image.open(str(path/'shana-tova-bg.jpeg')), (1024,1024), font, poem)
     st.image(i)
