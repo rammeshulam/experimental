@@ -4,7 +4,9 @@ from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 
 def create_image(image, size, font, message):
-    """Adds text to the center of a given image"""
+    """Adds text to the center of a given image
+    deployed on https://poetic-new-year.streamlit.app
+    """
 
     W, H = size
     draw = ImageDraw.Draw(image)
