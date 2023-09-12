@@ -5,8 +5,6 @@ Create a short, funny and positive poem
 
 The poem wishes a happy new year to my friend, {recipient}.
 
-The poem should be related to Waze and include relevant themes, such as driving roads, traffic jams, reaching your destination etc'. 
-
 The poem should briefly mention fun facts about
 {recipient}: They love {fun_facts}
 
