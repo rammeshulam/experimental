@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק שלושת הכוסות - מותאם למובייל</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* General styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column; /* Vertical layout */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+            padding: 1rem; /* Add some padding for smaller screens */
+        }
+        /* Container for cups and gift */
+        .cup-container {
+            position: relative;
+            width: 90%; /* Flexible width */
+            max-width: 380px; /* Slightly smaller max width */
+            height: 130px; /* Adjusted height */
+            display: flex;
+            justify-content: space-around; /* Distribute cups */
+            align-items: flex-end; /* Align cups to the bottom */
+            margin-bottom: 2rem;
+        }
+        /* Cup styling */
+        .cup {
+            /* Slightly smaller cups for mobile */
+            width: 70px;
+            height: 90px;
+            background-color: #ef4444; /* Red */
+            border-radius: 8px 8px 0 0; /* Adjusted rounded top corners */
+            position: absolute; /* For positioning and animation */
+            bottom: 0;
+            cursor: default; /* Cursor changes when guessing is allowed */
+            /* Transitions: lifting (bottom), positioning (left, transform) */
+            transition: bottom 0.4s ease-in-out, left 0.3s ease-in-out, transform 0.3s ease-in-out;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem; /* Adjusted font size */
+            color: white;
+            /* Prevent text selection on cups */
+            user-select: none;
+        }
+        /* Lifted state for a cup */
+        .cup.lifted {
+            bottom: 60px; /* Adjusted lift height */
+        }
+        /* Gift styling */
+        .gift {
+            width: 45px; /* Adjusted size */
+            height: 45px;
+            font-size: 2.2rem; /* Adjusted size */
+            line-height: 45px;
+            text-align: center;
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: left 0.3s ease-in-out, transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            display: none; /* Hidden initially */
+            user-select: none;
+            opacity: 0; /* Start fully transparent */
+        }
+        .gift.visible { /* Class to make gift visible */
+             display: flex;
+             opacity: 1;
+        }
+        /* Button styling (main button) */
+        #startButton {
+            padding: 0.75rem 1.5rem; /* Good tap target size */
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            background-color: #2563eb; /* Blue */
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        #startButton:hover:not(:disabled) {
+            background-color: #1d4ed8; /* Darker blue on hover */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        #startButton:active:not(:disabled) {
+            transform: scale(0.98); /* Slight shrink on click */
+        }
+        #startButton:disabled {
+            background-color: #9ca3af; /* Gray when disabled */
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        /* Message area styling */
+        #message {
+            min-height: 4rem;
+            font-weight: 500;
+            color: #1f2937; /* Dark gray text */
+            margin-top: 1rem;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+        /* Splat overlay styling */
+        #splat-overlay {
+            position: fixed; /* Cover the whole screen */
+            inset: 0; /* top, right, bottom, left = 0 */
+            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top */
+            font-size: 20vw; /* Slightly larger emoji size relative to viewport width */
+            color: red;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none; /* Allow clicks through when hidden */
+            display: none; /* Start hidden */
+        }
+        #splat-overlay.visible {
+            opacity: 1;
+            pointer-events: auto; /* Block clicks when visible */
+            display: flex; /* Show when visible */
+        }
+        /* Joke feedback buttons container */
+        #joke-feedback {
+            margin-top: 1rem;
+            display: flex; /* Use flex for button layout */
+            gap: 1rem; /* Space between buttons */
+            justify-content: center; /* Center buttons */
+            display: none; /* Start hidden */
+        }
+         /* Joke feedback button styling */
+        .feedback-button {
+            padding: 0.6rem 1.1rem; /* Slightly larger padding for touch */
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 0.375rem; /* rounded-md */
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            border: 1px solid transparent;
+        }
+        #funny-button {
+            background-color: #10b981; /* Emerald 500 */
+            color: white;
+            border-color: #059669; /* Emerald 600 */
+        }
+        #funny-button:hover {
+            background-color: #059669; /* Emerald 600 */
+        }
+        #not-funny-button {
+            background-color: #f87171; /* Red 400 */
+            color: white;
+            border-color: #ef4444; /* Red 500 */
+        }
+        #not-funny-button:hover {
+            background-color: #ef4444; /* Red 500 */
+        }
+        .feedback-button:active {
+             transform: scale(0.96);
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col justify-center items-center min-h-screen">
+
+    <h1 class="text-2xl sm:text-3xl font-bold mb-6 text-gray-800 text-center">משחק שלושת הכוסות</h1>
+
+    <div id="game-area" class="flex flex-col items-center w-full px-2 sm:px-4">
+        <div class="cup-container mb-6">
+            <div id="cup1" class="cup"></div>
+            <div id="cup2" class="cup"></div>
+            <div id="cup3" class="cup"></div>
+            <div id="gift" class="gift">🎁</div>
+        </div>
+
+        <div class="text-center w-full">
+            <button id="startButton" class="mb-4">
+                שחק
+            </button>
+            <p id="message" class="text-base sm:text-lg text-gray-700"></p>
+
+            <div id="joke-feedback">
+                <button id="funny-button" class="feedback-button">מצחיק 👍</button>
+                <button id="not-funny-button" class="feedback-button">לא מצחיק 👎</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="splat-overlay">🍅</div>
+
+    <script>
+        // --- Element References ---
+        const cups = Array.from(document.querySelectorAll('.cup'));
+        const gift = document.getElementById('gift');
+        const startButton = document.getElementById('startButton');
+        const message = document.getElementById('message');
+        const cupContainer = document.querySelector('.cup-container');
+        const splatOverlay = document.getElementById('splat-overlay');
+        const jokeFeedbackContainer = document.getElementById('joke-feedback');
+        const funnyButton = document.getElementById('funny-button');
+        const notFunnyButton = document.getElementById('not-funny-button');
+
+        // --- Game State Variables ---
+        let giftHolderElement = null; // The cup element hiding the gift
+        let shuffling = false;        // Is the shuffle animation running?
+        let canGuess = false;         // Is the player allowed to guess?
+        let activeTimeoutId = null;   // Store ID of the current game timeout
+
+        // --- Game Settings ---
+        const revealTime = 1000;      // How long the gift is shown initially (ms)
+        const liftTime = 400;         // Duration of cup lift animation (ms)
+        const shuffleSwapTime = 300;  // Duration of a single cup swap (ms)
+        const shuffleDuration = 3000; // Total duration of shuffling (ms)
+        const swapsPerShuffle = Math.floor(shuffleDuration / (shuffleSwapTime + 50)); // Number of swaps
+        const splatDuration = 1500;   // How long the splat effect stays (ms)
+
+        // --- Fixed positions for each cup slot ---
+        // Adjusted percentages for better spacing on mobile
+        const cupSlots = [
+            { left: '10%', transform: 'translateX(0%)' },      // Left slot
+            { left: '50%', transform: 'translateX(-50%)' },   // Middle slot
+            { left: '90%', transform: 'translateX(-100%)' }   // Right slot
+        ];
+
+        // --- Jokes Array ---
+        const jokes = [
+            "למה דג לא יכול לשחק כדורסל? כי הוא מפחד מהרשת!", "איך קוראים לאיש שבולע שעונים? בזבזמן.", "מה ההבדל בין פיל למקרר? אי אפשר להכניס פיל למקרר.", "למה הלך הארנב לרופא שיניים? כי היו לו כאבי ביס.", "מה אומרים כשרואים שלד יוצא מהארון? 'עצמותיי יבשו!'",
+            "איך קוראים לבומרנג שלא חוזר? מקל.", "מה משותף לאסטרונאוט ולדוגמן? שניהם מחפשים ספייס.", "למה תרנגול הודו חוצה את הכביש פעמיים? כדי להוכיח שהוא לא פחדן.", "מה אמר הים ליבשה? שום דבר, הוא רק גלש.", "איך קוראים לאיש בלי יד ובלי רגל שנפל לבור? בורקס.",
+            "למה למדוזות אין חברים? כי הן צורבות.", "מה עושה פרה על עץ? מחכה שהחלב ירד.", "למה הפיל צבע את הציפורניים שלו באדום? כדי שיוכל להתחבא בערוגת תותים.", "איך קוראים לכלב של קוסם? לברקדברדור.", "מה אמר הקיר לקיר השני? ניפגש בפינה.",
+            "למה הדבורה מתאפרת? כי היא רוצה לצאת לדבש.", "איך קוראים ליתוש שנכנס לעין? עקיצת עין.", "מה עושה נחש על עץ? נחשב.", "למה כדאי לקחת סרגל למיטה? כדי למדוד את שעות השינה.", "מה קורה כששני נחשים מתנגשים? הלם נחשולי.",
+            "איך קוראים לאישה שיש לה חשבון בנק אחד יותר מבעלה? מיליונרית.", "למה הירח גדול יותר מהשמש? כי הוא יוצא בלילה.", "מה עושה עורך דין בבית משפט? תובע.", "איך קוראים לנהג מונית שאוהב לאכול? מוניטרי.", "למה הספר לא יכול לספר סודות? כי הוא תמיד מגלה.",
+            "מה אמר המסמר לפטיש? אל תכה אותי, אני כבר תקוע.", "איך קוראים לדג בלי עין? דג.", "למה הלך העיפרון לבית הספר? כדי להתחדד.", "מה שותה סופרמן כשהוא עצוב? מיץ אומץ.", "איך קוראים לאיש שגונב סבונים? מסתבן.",
+            "למה התפוח הלך לרופא? כי הוא הרגיש רקוב.", "מה עושה פיל בחנות חרסינה? שובר.", "איך קוראים לאיש שנפל מהקומה העשירית ושרד? בר מזל.", "למה המחשב הלך לרופא? כי היה לו וירוס.", "מה אמר הבלון לחבר שלו? היזהר מהקקטוס!",
+            "איך קוראים לילד שאוהב מתמטיקה? מחשבון.", "למה הדלת לא יכולה לרוץ? כי יש לה רק רגל אחת.", "מה עושה עכביש במחשב? גולש ברשת.", "איך קוראים לאיש שמוכר קרח? מקפיא.", "למה הלך הענן לבית הספר? כדי ללמוד איך לרדת גשם.",
+            "מה אמר הכובע לראש? אתה תישאר כאן, אני יוצא.", "איך קוראים לחתול שאוהב מוזיקה? מיציקאי.", "למה הים כחול? כי הדגים עושים 'בלו בלו בלו'.", "מה עושה שעון קיר כשהוא רעב? אוכל זמן.", "איך קוראים לאיש שמשחק שחמט כל היום? משועמם.",
+            "למה הלך התנין לגן חיות? לחפש עור חדש.", "מה אמר האפס לשמונה? חגורה יפה!", "איך קוראים לזבוב בלי כנפיים? הולך רגל.", "למה העגבנייה אדומה? כי היא ראתה את סלט הירקות מתפשט.", "מה עושה פרה כשהיא רואה רוח רפאים? מתעלפת.",
+            "איך קוראים לאיש ששותה קולה כל היום? תוסס.", "למה הלך הדחליל לאוניברסיטה? כדי לשפר את המוח שלו.", "מה אמר החשמל למים? אל תיגע בי, אני בהלם.", "איך קוראים לתינוק של דינוזאור? צעצוע.", "למה הלך הסנדוויץ' לים? כי הוא רצה להשתזף.",
+            "מה עושה צלם מתחת למים? מצלם.", "איך קוראים לאיש שתמיד מאחר? שעון.", "למה הלך הטוסט לבית קפה? כי הוא רצה להרגיש מחומם.", "מה אמר המטאטא לרצפה? אני עף עלייך.", "איך קוראים לרופא שיניים של דרקונים? אמיץ.",
+            "למה הלך המלח לים? לחפש את הפלפל.", "מה עושה עוגייה אצל פסיכולוג? מתפוררת.", "איך קוראים לאיש שבונה גשרים? מגשר.", "למה הלך הנייר טואלט במורד הגבעה? כדי להגיע לתחתית.", "מה אמר העיפרון למחק? אתה תמיד מוחק לי את הטעויות.",
+            "איך קוראים לפרה שזכתה בלוטו? מליונרה.", "למה הלך הגזר למסיבה? כי הוא רצה להיות כתום ושמח.", "מה עושה תפוח אדמה בבוקר? מתעורר.", "איך קוראים לאיש שנופל מהרבה בניינים? קופץ.", "למה הלך הכלב לבנק? כדי לפתוח חשבון נביחות.",
+            "מה אמר החילזון לצב? אל תרוץ, אני לא מצליח לעקוב.", "איך קוראים למכשפה שטסה על מטאטא שבור? נופלת.", "למה הלך הכיסא למספרה? כי הוא רצה לשנות רגליים.", "מה עושה כבשה במספרה? סופרת.", "איך קוראים לאיש שמדבר עם ירקות? משוגע.",
+            "למה הלך האורז לחתונה? כדי להיות מלווה.", "מה אמר הלב למח? אל תחשוב יותר מדי, זה כואב.", "איך קוראים לנמלה הכי גדולה בעולם? פילנמלה.", "למה הלך המזלג למטבח? לחפש את הכף.", "מה עושה שוקולד בחדר כושר? מזיע.",
+            "איך קוראים לאיש שקורא מחשבות? קוסם.", "למה הלך הבננה לרופא? כי היא לא הרגישה קלילה.", "מה אמר הספר למדף? תחזיק אותי, אני נופל.", "איך קוראים לרוח רפאים שאוהבת לאכול? רוח רעבה.", "למה הלך העכבר לחלל? לחפש גבינה ירחית.",
+            "מה עושה לימון כשהוא עצוב? סחוט.", "איך קוראים לאיש שרוקד עם כוכבים? אסטרונאוט.", "למה הלכה הביצה לכביש? כדי להפוך לחביתה.", "מה אמר העץ לילד? אל תטפס עליי, אני מדגדג.", "איך קוראים לחתול שיש לו GPS? חתול ממוקם.",
+            "למה הלכה המנורה לים? כי היא רצתה להאיר את הגלים.", "מה עושה זמר במקלחת? שר.", "איך קוראים לאיש ששותה רק מים? בריא.", "למה הלך הפלפל לשוק? כי הוא היה חריף על קניות.", "מה אמר הטוסטר ללחם? אתה הולך להשתזף.",
+            "איך קוראים לדבורה מלכה? הוד מעלתה.", "למה הלך השטיח לרופא? כי הוא הרגיש שדורכים עליו.", "מה עושה טייס אוטומטי כשהוא משועמם? מפהק.", "איך קוראים לאיש שיש לו הרבה נעליים? סנדלר.", "למה הלכה הכיכר לחם למאפיה? לחפש חברים.",
+            "מה אמר הים לספינה? אל תעשי גלים.", "איך קוראים לכלב שיודע לעשות קסמים? הארי פוטר."
+        ];
+
+        // --- Game Functions ---
+
+        /** Clears any active game timeouts */
+        function clearActiveTimeout() {
+            if (activeTimeoutId) {
+                clearTimeout(activeTimeoutId);
+                activeTimeoutId = null;
+            }
+        }
+
+        /** Resets the cup positions and visual states */
+        function resetCupPositions() {
+            cups.forEach((cupEl, index) => {
+                // Apply position styles from cupSlots
+                Object.assign(cupEl.style, cupSlots[index]);
+                // Remove visual state classes
+                cupEl.classList.remove('lifted', 'shuffling');
+                // Store the slot index in a data attribute
+                cupEl.dataset.slot = index;
+            });
+            // Hide the gift visually and structurally
+            gift.classList.remove('visible');
+            gift.style.display = 'none';
+            // Hide the splat overlay
+            splatOverlay.classList.remove('visible');
+            splatOverlay.style.display = 'none';
+            // Hide joke feedback buttons
+            jokeFeedbackContainer.style.display = 'none';
+        }
+
+        /** Sets up a new round of the game */
+        function setupNewRound() {
+            console.log("Setting up new round...");
+            clearActiveTimeout(); // Clear any leftover timeouts
+            message.textContent = 'התכונן...'; // Initial message
+            canGuess = false;     // Disable guessing
+            shuffling = false;    // Not shuffling yet
+            startButton.disabled = true; // Disable start button during setup/play
+            removeGuessListeners(); // Remove old listeners
+            resetCupPositions();    // Put cups back in starting positions
+
+            // Randomly choose which cup hides the gift
+            const giftCupIndex = Math.floor(Math.random() * cups.length);
+            giftHolderElement = cups[giftCupIndex]; // Store the winning cup element
+            console.log(`Gift is under cup in slot: ${giftCupIndex}`); // Log for debugging
+
+            // Position the gift element visually under the winning cup's slot
+            const winningSlot = cupSlots[giftCupIndex];
+            Object.assign(gift.style, winningSlot); // Match gift position to cup slot
+
+            // Reveal phase: Lift the winning cup and show the gift
+            giftHolderElement.classList.add('lifted'); // Lift the cup
+            gift.style.display = 'flex'; // Make gift take up space
+
+            // Use a tiny timeout to ensure 'display: flex' applies before opacity transition starts
+            setTimeout(() => {
+                 gift.classList.add('visible'); // Fade in the gift
+            }, 10); // Small delay (10ms)
+
+            // Set timeout to hide the gift and start shuffling after revealTime
+            activeTimeoutId = setTimeout(() => {
+                giftHolderElement.classList.remove('lifted'); // Lower the cup
+                gift.classList.remove('visible'); // Fade out the gift
+
+                // Wait for lift/fade animations to finish before hiding gift and starting shuffle
+                activeTimeoutId = setTimeout(() => {
+                    gift.style.display = 'none'; // Hide gift element completely
+                    startShuffle(); // Begin shuffling sequence
+                }, Math.max(liftTime, 300)); // Wait for the longer of lift or fade transition
+
+            }, revealTime); // Duration of the reveal phase
+        }
+
+        /** Starts the cup shuffling animation */
+        function startShuffle() {
+            console.log("Starting shuffle...");
+            message.textContent = '...מערבב'; // Update status message
+            shuffling = true;           // Set shuffling state
+            clearActiveTimeout();       // Clear previous timeouts
+
+            let shuffleCount = 0; // Counter for number of swaps
+            const shuffleInterval = shuffleSwapTime + 50; // Time between swaps (swap time + small buffer)
+
+            // Function to perform one step of the shuffle
+            function performShuffleStep() {
+                // Double-check if shuffling was cancelled externally
+                if (!shuffling) {
+                    console.log("Shuffle cancelled during steps.");
+                    return; // Stop if shuffling flag is false
+                }
+                // Check if required number of swaps is complete
+                if (shuffleCount >= swapsPerShuffle) {
+                    endShuffle(); // Finish shuffling
+                    return;
+                }
+                shuffleSinglePair(); // Perform a visual swap of two cups
+                shuffleCount++;      // Increment swap counter
+
+                // Schedule the next shuffle step
+                activeTimeoutId = setTimeout(performShuffleStep, shuffleInterval);
+            }
+            performShuffleStep(); // Start the first shuffle step
+        }
+
+        /** Ends the shuffling process and allows the player to guess */
+        function endShuffle() {
+            console.log("Shuffle ended.");
+            shuffling = false;    // No longer shuffling
+            canGuess = true;      // Allow guessing now
+            message.textContent = 'בחר כוס!'; // Prompt player to guess
+            addGuessListeners();  // Add click listeners to cups
+            cups.forEach(cupEl => cupEl.classList.remove('shuffling')); // Clean up any shuffling class
+            activeTimeoutId = null; // Clear timeout ID as shuffle sequence is complete
+        }
+
+        /** Performs a single visual swap between two randomly chosen cups */
+        function shuffleSinglePair() {
+            // Pick two different random cup indices
+            let index1 = Math.floor(Math.random() * cups.length);
+            let index2 = Math.floor(Math.random() * cups.length);
+            while (index1 === index2) { // Ensure indices are different
+                index2 = Math.floor(Math.random() * cups.length);
+            }
+            const cup1 = cups[index1]; // First cup element
+            const cup2 = cups[index2]; // Second cup element
+            // Get the current slot indices from data attributes
+            const slotIndex1 = parseInt(cup1.dataset.slot);
+            const slotIndex2 = parseInt(cup2.dataset.slot);
+
+            // Swap visual positions by applying the other cup's slot style
+            Object.assign(cup1.style, cupSlots[slotIndex2]);
+            Object.assign(cup2.style, cupSlots[slotIndex1]);
+            // Update the data attributes to reflect the new slot positions
+            cup1.dataset.slot = slotIndex2;
+            cup2.dataset.slot = slotIndex1;
+        }
+
+        /** Handles the player's guess when a cup is clicked */
+        function handleGuess(event) {
+            // Ignore clicks if not allowed to guess or if shuffling
+            if (!canGuess || shuffling) return;
+
+            canGuess = false;         // Disable further guessing
+            removeGuessListeners();   // Remove listeners to prevent multiple guesses
+            clearActiveTimeout();     // Clear any pending timeouts
+            const chosenCup = event.currentTarget; // The cup that was clicked
+
+            console.log(`Guess: Cup in original slot ${parseInt(chosenCup.dataset.slot)}`);
+            chosenCup.classList.add('lifted'); // Lift the chosen cup
+
+            // Check if the chosen cup is the one hiding the gift
+            if (chosenCup === giftHolderElement) {
+                // --- Correct Guess ---
+                // Pick and display a random joke
+                const randomJokeIndex = Math.floor(Math.random() * jokes.length);
+                const randomJoke = jokes[randomJokeIndex];
+                message.innerHTML = `כל הכבוד! ניחשת נכון! 🎉<br><br>הנה בדיחה בשבילך:<br><i>${randomJoke}</i>`;
+                jokeFeedbackContainer.style.display = 'flex'; // Show feedback buttons
+
+                // Optional: Lower the cup after a short delay
+                // activeTimeoutId = setTimeout(() => {
+                //     chosenCup.classList.remove('lifted');
+                // }, 1000);
+                // Game restart is now handled by feedback buttons
+
+            } else {
+                // --- Incorrect Guess ---
+                message.textContent = `אופס! טעית...`; // Update message
+
+                // Show splat effect
+                splatOverlay.style.display = 'flex'; // Make it visible
+                splatOverlay.offsetHeight; // Force browser reflow to ensure transition plays
+                splatOverlay.classList.add('visible'); // Add class to trigger fade-in
+
+                // Set timeout to handle events after splat duration
+                activeTimeoutId = setTimeout(() => {
+                    // Hide splat effect
+                    splatOverlay.classList.remove('visible'); // Fade out
+                    activeTimeoutId = setTimeout(() => {
+                        splatOverlay.style.display = 'none'; // Hide completely after fade
+                    }, 300); // Wait for fade out transition
+
+                    // Lower the incorrectly chosen cup
+                    chosenCup.classList.remove('lifted');
+
+                    // Short delay before revealing the correct cup
+                    activeTimeoutId = setTimeout(() => {
+                        // Find the correct cup's current slot
+                        const correctSlotIndex = parseInt(giftHolderElement.dataset.slot);
+                        // Position the gift element under the correct cup's current position
+                        Object.assign(gift.style, cupSlots[correctSlotIndex]);
+
+                        // Lift the ACTUAL correct cup
+                        giftHolderElement.classList.add('lifted');
+                        // Show the gift under the correct cup
+                        gift.style.display = 'flex';
+                         setTimeout(() => { // Tiny delay for display change
+                            gift.classList.add('visible'); // Fade in gift
+                         }, 10);
+
+                        message.textContent = `אופס! טעית. המתנה הייתה כאן.`; // Update message
+
+                        // Allow a new game after showing the correct location
+                        activeTimeoutId = setTimeout(() => {
+                            startButton.disabled = false; // Re-enable start button
+                            message.textContent = 'לחץ "שחק" למשחק חדש.';
+                            // Lower the correct cup and hide the gift again
+                            giftHolderElement.classList.remove('lifted');
+                            gift.classList.remove('visible');
+                             activeTimeoutId = setTimeout(() => { // Wait for fade out
+                                gift.style.display = 'none';
+                             }, 300);
+                        }, 2000); // Time to show the correct answer
+
+                    }, 100); // Short delay after lowering wrong cup
+
+                }, splatDuration); // Duration the splat is shown
+            }
+        }
+
+        /** Adds click/touch event listeners to the cups for guessing */
+        function addGuessListeners() {
+            cups.forEach(cup => {
+                cup.addEventListener('click', handleGuess); // Use 'click' - works for touch too
+                cup.style.cursor = 'pointer'; // Change cursor to indicate clickable
+            });
+        }
+
+        /** Removes click/touch event listeners from the cups */
+        function removeGuessListeners() {
+             cups.forEach(cup => {
+                cup.removeEventListener('click', handleGuess);
+                cup.style.cursor = 'default'; // Reset cursor
+            });
+        }
+
+        /** Handles click on either feedback button (funny/not funny) */
+        function handleFeedbackClick() {
+            console.log("Feedback received, preparing new round.");
+            jokeFeedbackContainer.style.display = 'none'; // Hide feedback buttons
+            message.textContent = ''; // Clear the message/joke area
+
+            // Find the lifted cup (the correct one from the previous round) and lower it
+            const liftedCup = document.querySelector('.cup.lifted');
+            if(liftedCup) {
+                liftedCup.classList.remove('lifted');
+            }
+            // Short delay before starting the next round for smoother transition
+            setTimeout(setupNewRound, 150);
+        }
+
+
+        // --- Event Listeners and Initial Setup ---
+
+        // Start button click listener
+        startButton.addEventListener('click', setupNewRound);
+
+        // Feedback button click listeners
+        funnyButton.addEventListener('click', handleFeedbackClick);
+        notFunnyButton.addEventListener('click', handleFeedbackClick);
+
+        // Initial setup when the page loads
+        window.addEventListener('load', () => {
+             resetCupPositions(); // Set initial cup positions
+             message.textContent = 'לחץ על "שחק" כדי להתחיל!'; // Initial message
+             startButton.disabled = false; // Enable the start button
+        });
+
+    </script>
+
+</body>
+</html>
