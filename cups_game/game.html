@@ -64,17 +64,19 @@
             line-height: 45px;
             text-align: center;
             position: absolute;
-            bottom: 5px;
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 5px; /* Position near the bottom of the container */
+            left: 50%; /* Default horizontal position */
+            transform: translateX(-50%); /* Center horizontally */
             transition: left 0.3s ease-in-out, transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
             display: none; /* Hidden initially */
             user-select: none;
             opacity: 0; /* Start fully transparent */
+            z-index: -1; /* Ensure gift is behind cups initially */
         }
         .gift.visible { /* Class to make gift visible */
-             display: flex;
+             display: flex; /* Use flex to allow centering if needed */
              opacity: 1;
+             z-index: 0; /* Bring gift in front of potential background elements, but behind lifted cup */
         }
         /* Button styling (main button) */
         #startButton {
@@ -112,27 +114,48 @@
             max-width: 400px;
             line-height: 1.5;
         }
+
+        /* --- Splat Animation --- */
+        @keyframes throwTomato {
+            0% {
+                transform: scale(0.1); /* Start small */
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(1); /* End at full size */
+                opacity: 1;
+            }
+        }
+
         /* Splat overlay styling */
         #splat-overlay {
             position: fixed; /* Cover the whole screen */
             inset: 0; /* top, right, bottom, left = 0 */
-            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black background */
+            /* No background color here */
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000; /* Ensure it's on top */
-            font-size: 20vw; /* Slightly larger emoji size relative to viewport width */
-            color: red;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
+            font-size: 20vw; /* Emoji size relative to viewport width */
+            color: red; /* Color of the emoji */
+            opacity: 0; /* Start transparent */
             pointer-events: none; /* Allow clicks through when hidden */
             display: none; /* Start hidden */
+            transform: scale(1); /* Default scale */
         }
+
+        /* REMOVED ::before pseudo-element for background dimming */
+
         #splat-overlay.visible {
-            opacity: 1;
+            opacity: 1; /* Make emoji visible */
             pointer-events: auto; /* Block clicks when visible */
             display: flex; /* Show when visible */
+            /* Apply the throw animation */
+            animation: throwTomato 0.4s ease-in forwards; /* name, duration, timing-function, fill-mode */
         }
+
+        /* REMOVED .visible::before rule */
+
         /* Joke feedback buttons container */
         #joke-feedback {
             margin-top: 1rem;
@@ -202,21 +225,21 @@
 
     <script>
         // --- Element References ---
-        const cups = Array.from(document.querySelectorAll('.cup'));
-        const gift = document.getElementById('gift');
-        const startButton = document.getElementById('startButton');
-        const message = document.getElementById('message');
-        const cupContainer = document.querySelector('.cup-container');
-        const splatOverlay = document.getElementById('splat-overlay');
-        const jokeFeedbackContainer = document.getElementById('joke-feedback');
-        const funnyButton = document.getElementById('funny-button');
-        const notFunnyButton = document.getElementById('not-funny-button');
+        const cups = Array.from(document.querySelectorAll('.cup')); // Array of cup elements
+        const gift = document.getElementById('gift');             // The gift element (🎁)
+        const startButton = document.getElementById('startButton'); // The main game button
+        const message = document.getElementById('message');         // Paragraph for messages
+        const cupContainer = document.querySelector('.cup-container'); // Container div for cups/gift
+        const splatOverlay = document.getElementById('splat-overlay'); // Tomato splat overlay
+        const jokeFeedbackContainer = document.getElementById('joke-feedback'); // Container for feedback buttons
+        const funnyButton = document.getElementById('funny-button');     // "Funny" button
+        const notFunnyButton = document.getElementById('not-funny-button'); // "Not Funny" button
 
         // --- Game State Variables ---
-        let giftHolderElement = null; // The cup element hiding the gift
+        let giftHolderElement = null; // The cup element currently hiding the gift
         let shuffling = false;        // Is the shuffle animation running?
         let canGuess = false;         // Is the player allowed to guess?
-        let activeTimeoutId = null;   // Store ID of the current game timeout
+        let activeTimeoutId = null;   // Store ID of the current game timeout (for cancellation)
 
         // --- Game Settings ---
         const revealTime = 1000;      // How long the gift is shown initially (ms)
@@ -224,40 +247,96 @@
         const shuffleSwapTime = 300;  // Duration of a single cup swap (ms)
         const shuffleDuration = 3000; // Total duration of shuffling (ms)
         const swapsPerShuffle = Math.floor(shuffleDuration / (shuffleSwapTime + 50)); // Number of swaps
-        const splatDuration = 1500;   // How long the splat effect stays (ms)
+        const splatDuration = 1500;   // How long the splat effect stays visible (ms) - includes animation time
+        const giftFadeTime = 300;     // Duration of gift fade in/out (should match CSS transition)
+        const splatAnimationTime = 400; // Duration of the splat animation (ms) - matches CSS
+        const splatFadeOutTime = 300; // Duration of splat fade-out (ms)
 
         // --- Fixed positions for each cup slot ---
-        // Adjusted percentages for better spacing on mobile
+        // Uses percentages for responsive layout. Adjusted for better spacing.
         const cupSlots = [
             { left: '10%', transform: 'translateX(0%)' },      // Left slot
-            { left: '50%', transform: 'translateX(-50%)' },   // Middle slot
-            { left: '90%', transform: 'translateX(-100%)' }   // Right slot
+            { left: '50%', transform: 'translateX(-50%)' },    // Middle slot
+            { left: '90%', transform: 'translateX(-100%)' }    // Right slot
         ];
 
-        // --- Jokes Array ---
-        const jokes = [
-            "למה דג לא יכול לשחק כדורסל? כי הוא מפחד מהרשת!", "איך קוראים לאיש שבולע שעונים? בזבזמן.", "מה ההבדל בין פיל למקרר? אי אפשר להכניס פיל למקרר.", "למה הלך הארנב לרופא שיניים? כי היו לו כאבי ביס.", "מה אומרים כשרואים שלד יוצא מהארון? 'עצמותיי יבשו!'",
-            "איך קוראים לבומרנג שלא חוזר? מקל.", "מה משותף לאסטרונאוט ולדוגמן? שניהם מחפשים ספייס.", "למה תרנגול הודו חוצה את הכביש פעמיים? כדי להוכיח שהוא לא פחדן.", "מה אמר הים ליבשה? שום דבר, הוא רק גלש.", "איך קוראים לאיש בלי יד ובלי רגל שנפל לבור? בורקס.",
-            "למה למדוזות אין חברים? כי הן צורבות.", "מה עושה פרה על עץ? מחכה שהחלב ירד.", "למה הפיל צבע את הציפורניים שלו באדום? כדי שיוכל להתחבא בערוגת תותים.", "איך קוראים לכלב של קוסם? לברקדברדור.", "מה אמר הקיר לקיר השני? ניפגש בפינה.",
-            "למה הדבורה מתאפרת? כי היא רוצה לצאת לדבש.", "איך קוראים ליתוש שנכנס לעין? עקיצת עין.", "מה עושה נחש על עץ? נחשב.", "למה כדאי לקחת סרגל למיטה? כדי למדוד את שעות השינה.", "מה קורה כששני נחשים מתנגשים? הלם נחשולי.",
-            "איך קוראים לאישה שיש לה חשבון בנק אחד יותר מבעלה? מיליונרית.", "למה הירח גדול יותר מהשמש? כי הוא יוצא בלילה.", "מה עושה עורך דין בבית משפט? תובע.", "איך קוראים לנהג מונית שאוהב לאכול? מוניטרי.", "למה הספר לא יכול לספר סודות? כי הוא תמיד מגלה.",
-            "מה אמר המסמר לפטיש? אל תכה אותי, אני כבר תקוע.", "איך קוראים לדג בלי עין? דג.", "למה הלך העיפרון לבית הספר? כדי להתחדד.", "מה שותה סופרמן כשהוא עצוב? מיץ אומץ.", "איך קוראים לאיש שגונב סבונים? מסתבן.",
-            "למה התפוח הלך לרופא? כי הוא הרגיש רקוב.", "מה עושה פיל בחנות חרסינה? שובר.", "איך קוראים לאיש שנפל מהקומה העשירית ושרד? בר מזל.", "למה המחשב הלך לרופא? כי היה לו וירוס.", "מה אמר הבלון לחבר שלו? היזהר מהקקטוס!",
-            "איך קוראים לילד שאוהב מתמטיקה? מחשבון.", "למה הדלת לא יכולה לרוץ? כי יש לה רק רגל אחת.", "מה עושה עכביש במחשב? גולש ברשת.", "איך קוראים לאיש שמוכר קרח? מקפיא.", "למה הלך הענן לבית הספר? כדי ללמוד איך לרדת גשם.",
-            "מה אמר הכובע לראש? אתה תישאר כאן, אני יוצא.", "איך קוראים לחתול שאוהב מוזיקה? מיציקאי.", "למה הים כחול? כי הדגים עושים 'בלו בלו בלו'.", "מה עושה שעון קיר כשהוא רעב? אוכל זמן.", "איך קוראים לאיש שמשחק שחמט כל היום? משועמם.",
-            "למה הלך התנין לגן חיות? לחפש עור חדש.", "מה אמר האפס לשמונה? חגורה יפה!", "איך קוראים לזבוב בלי כנפיים? הולך רגל.", "למה העגבנייה אדומה? כי היא ראתה את סלט הירקות מתפשט.", "מה עושה פרה כשהיא רואה רוח רפאים? מתעלפת.",
-            "איך קוראים לאיש ששותה קולה כל היום? תוסס.", "למה הלך הדחליל לאוניברסיטה? כדי לשפר את המוח שלו.", "מה אמר החשמל למים? אל תיגע בי, אני בהלם.", "איך קוראים לתינוק של דינוזאור? צעצוע.", "למה הלך הסנדוויץ' לים? כי הוא רצה להשתזף.",
-            "מה עושה צלם מתחת למים? מצלם.", "איך קוראים לאיש שתמיד מאחר? שעון.", "למה הלך הטוסט לבית קפה? כי הוא רצה להרגיש מחומם.", "מה אמר המטאטא לרצפה? אני עף עלייך.", "איך קוראים לרופא שיניים של דרקונים? אמיץ.",
-            "למה הלך המלח לים? לחפש את הפלפל.", "מה עושה עוגייה אצל פסיכולוג? מתפוררת.", "איך קוראים לאיש שבונה גשרים? מגשר.", "למה הלך הנייר טואלט במורד הגבעה? כדי להגיע לתחתית.", "מה אמר העיפרון למחק? אתה תמיד מוחק לי את הטעויות.",
-            "איך קוראים לפרה שזכתה בלוטו? מליונרה.", "למה הלך הגזר למסיבה? כי הוא רצה להיות כתום ושמח.", "מה עושה תפוח אדמה בבוקר? מתעורר.", "איך קוראים לאיש שנופל מהרבה בניינים? קופץ.", "למה הלך הכלב לבנק? כדי לפתוח חשבון נביחות.",
-            "מה אמר החילזון לצב? אל תרוץ, אני לא מצליח לעקוב.", "איך קוראים למכשפה שטסה על מטאטא שבור? נופלת.", "למה הלך הכיסא למספרה? כי הוא רצה לשנות רגליים.", "מה עושה כבשה במספרה? סופרת.", "איך קוראים לאיש שמדבר עם ירקות? משוגע.",
-            "למה הלך האורז לחתונה? כדי להיות מלווה.", "מה אמר הלב למח? אל תחשוב יותר מדי, זה כואב.", "איך קוראים לנמלה הכי גדולה בעולם? פילנמלה.", "למה הלך המזלג למטבח? לחפש את הכף.", "מה עושה שוקולד בחדר כושר? מזיע.",
-            "איך קוראים לאיש שקורא מחשבות? קוסם.", "למה הלך הבננה לרופא? כי היא לא הרגישה קלילה.", "מה אמר הספר למדף? תחזיק אותי, אני נופל.", "איך קוראים לרוח רפאים שאוהבת לאכול? רוח רעבה.", "למה הלך העכבר לחלל? לחפש גבינה ירחית.",
-            "מה עושה לימון כשהוא עצוב? סחוט.", "איך קוראים לאיש שרוקד עם כוכבים? אסטרונאוט.", "למה הלכה הביצה לכביש? כדי להפוך לחביתה.", "מה אמר העץ לילד? אל תטפס עליי, אני מדגדג.", "איך קוראים לחתול שיש לו GPS? חתול ממוקם.",
-            "למה הלכה המנורה לים? כי היא רצתה להאיר את הגלים.", "מה עושה זמר במקלחת? שר.", "איך קוראים לאיש ששותה רק מים? בריא.", "למה הלך הפלפל לשוק? כי הוא היה חריף על קניות.", "מה אמר הטוסטר ללחם? אתה הולך להשתזף.",
-            "איך קוראים לדבורה מלכה? הוד מעלתה.", "למה הלך השטיח לרופא? כי הוא הרגיש שדורכים עליו.", "מה עושה טייס אוטומטי כשהוא משועמם? מפהק.", "איך קוראים לאיש שיש לו הרבה נעליים? סנדלר.", "למה הלכה הכיכר לחם למאפיה? לחפש חברים.",
-            "מה אמר הים לספינה? אל תעשי גלים.", "איך קוראים לכלב שיודע לעשות קסמים? הארי פוטר."
-        ];
+        // --- Jokes Array (Hebrew) ---
+        const jokes = jokes_hebrew_adult = [
+    'למה חלב לא יכול לשחק כדורגל? כי הוא מחמיץ.',
+    'איך נחש מתקשר לאמא שלו? הוא מקיש על המספרים.',
+    'מה אמרה כוס התה לביסקוויט שנטבל והתפורר בתוכה? "היית לי כעך".',
+    'מה מדען אומר לאשתו? יום ניסויים שמח.',
+    'איך קוראים לאיש בן שמונים? שמו נים.',
+    'למה עצים לא הולכים לבית ספר? כי הם מפחדים מהחטיבה.',
+    'למה צפרדע תמיד רעבה? כי הבטן שלה תמיד מקרקרת.',
+    'מה אומרים כשפוגשים מלפפון עצוב? "מה קרה, מלפפון חמוץ?".',
+    "נקניקיה וסטייק רבים מי יותר עשיר, פתאום נכנס בשר טחון.",
+    "למה חלב לא יכול לשחק כדורגל? כי הוא מחמיץ.",
+    "תמיד כשאומרים לי שאני כוכב אני מאדים, ובצדק.",
+    "יש לי המון בדיחות על אבטלה, אבל אף אחת מהן לא עובדת.",
+    "אם תקני ציוד, אז רק ציוד תקני.",
+    "למה עצים לא הולכים לבית ספר? כי הם מפחדים מהחטיבה.",
+    "סוכן ביטוח בודק כל לילה שהילדים שלו מכוסים?",
+    "שמשון לא אהב את הדייסה שהכינה אשתו. היא הייתה דלילה.",
+    'מה אמרה כוס התה לביסקוויט שנטבל והתפורר בתוכה? "היית לי כעך".',
+    "וייטנאמית מטפחת את הגינה בשביל הנוי?",
+    "כלבים אוהבים את השפה העברית בזכות שמות העצם.",
+    "העיר שנותנת תקווה לתתרנים: יריחו",
+    "מי שעובד במפעל של סוגת אורז מלא אורז מלא",
+    "הכרובית והכרוב – הם כרובי משפחה?",
+    "שילמתי לו 100 שקלים על משחק המילים, והוא אסף השטר.",
+    "למה עורכי דין יודעים טוב גיאומטריה? כי הם למדו משפטים.",
+    "למה היתוש החליף את הכיסא? כי הוא חרק.",
+    "זרקו על רותם סלע ורק אסי עזר פה.",
+    "שמעתם על הטי שירט שנתקעה מתחת לסלע? היא חולצה",
+    "שמעתם על כתף הבקר בחנות החיות? היא אומצה.",
+    "למה האבנים בנחל אף פעם לא מסכימות ביניהן? כי הם חלוקים.",
+    "איך מארק צוקרברג מתנקם? סוגר חשבון.",
+    "נגה, יש לך נפש חמה. כשאני לידך אני מאדים, ובצדק.",
+    "שניצל וסטייק מתווכחים מי מהם יותר עשיר, ואז בא הבשר הטחון.",
+    "אם מישהו רכב על סוס ועזב, אז הוא פרש או לא?",
+    "להודות למישהו בפה מלא, זה מנומס או לא?",
+    "קיבלת משכורת? כל השאר זה בונוס.",
+    'איך חב"דניק יודע מה לעשות כשמישהו אומר לו "תניח לי"?',
+    "אם ארכיאולוג העלה חרס בידו, זה סימן שהוא הצליח או לא?",
+    "האם למי שעובד במפעל לספרי קודש יש מדי יום סידורים?",
+    "מצחיק שלאלה שהדליקו את המנורה קוראים מכבים.",
+    "באיסטנבול לא סוגרים דלתות. הם טורקים.",
+    "מה עושים הגויים כשהם ישנים? נוכרים.",
+    "שקלתי הרבה לפני שהחלטתי לעשות דיאטה.",
+    "חיפשתי את עצמי בויקיפדיה ולא מצאתי. מרגיש חסר ערך.",
+    "יש לי חבר שלא יודע מאיפה מגיעים מי מעיין. זה נובע מבורות.",
+    'סבא קרוקודיל אמר לסבתא קרוקודילה: "את באה לבקר ת\'נינים?".',
+    "צעקתי על הטבח שלי שייקח את האוכל שלו לכל ארוחות.",
+    "זה לא הוגן שיש רק גרעינים לבנים, לבנות לא מגיע?",
+    "האופה עובד קשה מהבוקר ולא מבקש אף-עוגה.",
+    "למה כלבים אוהבים את השפה העברית? בגלל שמות העצם.",
+    "קצת מוזר לראות ראש משפחת פשע תובע, חשבתי שהם יודעים לסחוט.",
+    "כשמדען אוהב מדענית הוא מציע לה ניסויים?",
+    "אם רוצים לשאול מה השעה, כדאי ללכת לחנות שעונים.",
+    "הלכתי ברחוב וקראתי ספר. נתקעתי בעמוד הראשון.",
+    "לכבל מאריך שמקצר, אפשר לקרוא סתם כבל?",
+    "אם מתופף טובע, מה יעזור לו? מצילה.",
+    'איך אני נדהם מאיש צבא? "או מג"ד".',
+    'איך נעיר ירק שנרדם? "בזילי, קום!"',
+    "מי שלא מצליח למצוא דפי כיסוי לסושי שלו: אובד אצות.",
+    "קל לזהות פוליתאיסט. זה מובן מאליו.",
+    "איך קיר מדבר? בטון מאיים.",
+    "אנשים נעלמים בתוכו. לכן קוראים לזה – פוף.",
+    "באיסטנבול לא סוגרים דלתות, הם טורקים.",
+    "אני לא אוהב עופות דורסים, הם ממש בזים לך.",
+    'אמרו לי "גש הלום", אז ניגשתי והלמתי.',
+    "איך זוג צרפתים נפרדים? בגט.",
+    'אם פנו אליי מגבעתי, כפיר וגולני, זה אומר שקיבלתי הצעות מחי"ר?',
+    "אם אורי גלר היה קוף, הוא היה מכופף הבננות.",
+    "הנכד של יפת היה נינוח.",
+    "תדהמה בעולם הרכיבה על סוסים! אלוף העולם פרש!",
+    "מצחיק שלאלה שהדליקו את המנורה קוראים מכבים.",
+    "מה עושים הגויים כשהם ישנים? נוכרים.",
+    "שקלתי הרבה לפני שהחלטתי לעשות דיאטה.",
+    "חיפשתי את עצמי בוויקיפדיה ולא מצאתי. מרגיש חסר ערך.",
+    "יש לי חבר שלא יודע מאיפה מגיעים מי מעיין. זה נובע מבורות."
+];
 
         // --- Game Functions ---
 
@@ -269,22 +348,23 @@
             }
         }
 
-        /** Resets the cup positions and visual states */
+        /** Resets the cup positions and visual states to the start */
         function resetCupPositions() {
             cups.forEach((cupEl, index) => {
-                // Apply position styles from cupSlots
+                // Apply position styles from cupSlots array
                 Object.assign(cupEl.style, cupSlots[index]);
                 // Remove visual state classes
                 cupEl.classList.remove('lifted', 'shuffling');
-                // Store the slot index in a data attribute
+                // Store the slot index (0, 1, or 2) in a data attribute for tracking
                 cupEl.dataset.slot = index;
             });
             // Hide the gift visually and structurally
             gift.classList.remove('visible');
             gift.style.display = 'none';
-            // Hide the splat overlay
+            // Hide the splat overlay and remove animation classes/styles
             splatOverlay.classList.remove('visible');
             splatOverlay.style.display = 'none';
+            splatOverlay.style.animation = 'none'; // Remove animation property
             // Hide joke feedback buttons
             jokeFeedbackContainer.style.display = 'none';
         }
@@ -294,16 +374,16 @@
             console.log("Setting up new round...");
             clearActiveTimeout(); // Clear any leftover timeouts
             message.textContent = 'התכונן...'; // Initial message
-            canGuess = false;     // Disable guessing
+            canGuess = false;     // Disable guessing during setup
             shuffling = false;    // Not shuffling yet
             startButton.disabled = true; // Disable start button during setup/play
-            removeGuessListeners(); // Remove old listeners
+            removeGuessListeners(); // Remove old listeners if any
             resetCupPositions();    // Put cups back in starting positions
 
-            // Randomly choose which cup hides the gift
+            // Randomly choose which cup hides the gift (0, 1, or 2)
             const giftCupIndex = Math.floor(Math.random() * cups.length);
             giftHolderElement = cups[giftCupIndex]; // Store the winning cup element
-            console.log(`Gift is under cup in slot: ${giftCupIndex}`); // Log for debugging
+            console.log(`Gift is under cup initially in slot: ${giftCupIndex}`); // Log for debugging
 
             // Position the gift element visually under the winning cup's slot
             const winningSlot = cupSlots[giftCupIndex];
@@ -311,10 +391,10 @@
 
             // Reveal phase: Lift the winning cup and show the gift
             giftHolderElement.classList.add('lifted'); // Lift the cup
-            gift.style.display = 'flex'; // Make gift take up space
+            gift.style.display = 'flex'; // Make gift element take up space
 
             // Use a tiny timeout to ensure 'display: flex' applies before opacity transition starts
-            setTimeout(() => {
+            activeTimeoutId = setTimeout(() => {
                  gift.classList.add('visible'); // Fade in the gift
             }, 10); // Small delay (10ms)
 
@@ -327,7 +407,7 @@
                 activeTimeoutId = setTimeout(() => {
                     gift.style.display = 'none'; // Hide gift element completely
                     startShuffle(); // Begin shuffling sequence
-                }, Math.max(liftTime, 300)); // Wait for the longer of lift or fade transition
+                }, Math.max(liftTime, giftFadeTime)); // Wait for the longer of lift or fade transition
 
             }, revealTime); // Duration of the reveal phase
         }
@@ -376,7 +456,7 @@
 
         /** Performs a single visual swap between two randomly chosen cups */
         function shuffleSinglePair() {
-            // Pick two different random cup indices
+            // Pick two different random cup indices (0, 1, or 2)
             let index1 = Math.floor(Math.random() * cups.length);
             let index2 = Math.floor(Math.random() * cups.length);
             while (index1 === index2) { // Ensure indices are different
@@ -384,13 +464,15 @@
             }
             const cup1 = cups[index1]; // First cup element
             const cup2 = cups[index2]; // Second cup element
-            // Get the current slot indices from data attributes
+
+            // Get the current slot indices from data attributes (where the cups ARE)
             const slotIndex1 = parseInt(cup1.dataset.slot);
             const slotIndex2 = parseInt(cup2.dataset.slot);
 
-            // Swap visual positions by applying the other cup's slot style
+            // Swap visual positions by applying the other cup's target slot style
             Object.assign(cup1.style, cupSlots[slotIndex2]);
             Object.assign(cup2.style, cupSlots[slotIndex1]);
+
             // Update the data attributes to reflect the new slot positions
             cup1.dataset.slot = slotIndex2;
             cup2.dataset.slot = slotIndex1;
@@ -398,55 +480,71 @@
 
         /** Handles the player's guess when a cup is clicked */
         function handleGuess(event) {
-            // Ignore clicks if not allowed to guess or if shuffling
+            // Ignore clicks if not allowed to guess or if shuffling is in progress
             if (!canGuess || shuffling) return;
 
-            canGuess = false;         // Disable further guessing
+            canGuess = false;         // Disable further guessing immediately
             removeGuessListeners();   // Remove listeners to prevent multiple guesses
             clearActiveTimeout();     // Clear any pending timeouts
-            const chosenCup = event.currentTarget; // The cup that was clicked
+            const chosenCup = event.currentTarget; // The cup element that was clicked
 
-            console.log(`Guess: Cup in original slot ${parseInt(chosenCup.dataset.slot)}`);
-            chosenCup.classList.add('lifted'); // Lift the chosen cup
+            // Log the original slot number of the chosen cup for debugging
+            console.log(`Guess: Cup currently in slot ${parseInt(chosenCup.dataset.slot)} was chosen.`);
+            chosenCup.classList.add('lifted'); // Lift the chosen cup visually
 
             // Check if the chosen cup is the one hiding the gift
             if (chosenCup === giftHolderElement) {
                 // --- Correct Guess ---
+                console.log("Correct guess!");
+
+                // Position the gift under the correctly chosen cup's current slot
+                const correctSlotIndex = parseInt(chosenCup.dataset.slot);
+                Object.assign(gift.style, cupSlots[correctSlotIndex]);
+
+                // Make the gift visible
+                gift.style.display = 'flex';
+                // Use timeout to allow display change before adding class for transition
+                setTimeout(() => {
+                    gift.classList.add('visible');
+                }, 10);
+
                 // Pick and display a random joke
                 const randomJokeIndex = Math.floor(Math.random() * jokes.length);
                 const randomJoke = jokes[randomJokeIndex];
                 message.innerHTML = `כל הכבוד! ניחשת נכון! 🎉<br><br>הנה בדיחה בשבילך:<br><i>${randomJoke}</i>`;
                 jokeFeedbackContainer.style.display = 'flex'; // Show feedback buttons
 
-                // Optional: Lower the cup after a short delay
-                // activeTimeoutId = setTimeout(() => {
-                //     chosenCup.classList.remove('lifted');
-                // }, 1000);
-                // Game restart is now handled by feedback buttons
+                // Game restart is now handled by feedback buttons.
 
             } else {
                 // --- Incorrect Guess ---
+                console.log("Incorrect guess.");
                 message.textContent = `אופס! טעית...`; // Update message
 
-                // Show splat effect
-                splatOverlay.style.display = 'flex'; // Make it visible
-                splatOverlay.offsetHeight; // Force browser reflow to ensure transition plays
-                splatOverlay.classList.add('visible'); // Add class to trigger fade-in
+                // Show splat effect - CSS animation starts automatically via .visible class
+                splatOverlay.style.animation = 'none'; // Reset animation before applying it again
+                splatOverlay.offsetHeight; // Force reflow
+                splatOverlay.style.animation = ''; // Re-enable animation defined in CSS
+                splatOverlay.style.display = 'flex';
+                splatOverlay.classList.add('visible');
 
-                // Set timeout to handle events after splat duration
+                // Set timeout to hide the splat effect *after* its total duration
                 activeTimeoutId = setTimeout(() => {
-                    // Hide splat effect
-                    splatOverlay.classList.remove('visible'); // Fade out
+                    // Hide splat effect (it will fade if you add transition to opacity)
+                    splatOverlay.classList.remove('visible');
+                    // Use another timeout to set display:none after animation/transition
                     activeTimeoutId = setTimeout(() => {
-                        splatOverlay.style.display = 'none'; // Hide completely after fade
-                    }, 300); // Wait for fade out transition
+                         splatOverlay.style.display = 'none';
+                         splatOverlay.style.animation = 'none'; // Clean up animation style
+                    }, splatFadeOutTime); // Wait for fade out (adjust if needed)
+
 
                     // Lower the incorrectly chosen cup
                     chosenCup.classList.remove('lifted');
 
                     // Short delay before revealing the correct cup
                     activeTimeoutId = setTimeout(() => {
-                        // Find the correct cup's current slot
+                        // Find the correct cup's current slot index
                         const correctSlotIndex = parseInt(giftHolderElement.dataset.slot);
                         // Position the gift element under the correct cup's current position
                         Object.assign(gift.style, cupSlots[correctSlotIndex]);
@@ -455,8 +553,9 @@
                         giftHolderElement.classList.add('lifted');
                         // Show the gift under the correct cup
                         gift.style.display = 'flex';
-                         setTimeout(() => { // Tiny delay for display change
-                            gift.classList.add('visible'); // Fade in gift
+                         // Use timeout for display change before fade-in
+                         setTimeout(() => {
+                             gift.classList.add('visible'); // Fade in gift
                          }, 10);
 
                         message.textContent = `אופס! טעית. המתנה הייתה כאן.`; // Update message
@@ -465,24 +564,24 @@
                         activeTimeoutId = setTimeout(() => {
                             startButton.disabled = false; // Re-enable start button
                             message.textContent = 'לחץ "שחק" למשחק חדש.';
-                            // Lower the correct cup and hide the gift again
+                            // Lower the correct cup and hide the gift again before next round starts
                             giftHolderElement.classList.remove('lifted');
                             gift.classList.remove('visible');
                              activeTimeoutId = setTimeout(() => { // Wait for fade out
-                                gift.style.display = 'none';
-                             }, 300);
+                                 gift.style.display = 'none';
+                             }, giftFadeTime);
                         }, 2000); // Time to show the correct answer
 
-                    }, 100); // Short delay after lowering wrong cup
+                    }, liftTime + 50); // Delay slightly longer than lift time after lowering wrong cup
 
-                }, splatDuration); // Duration the splat is shown
+                }, splatDuration); // Duration the splat stays visible (includes animation time)
             }
         }
 
         /** Adds click/touch event listeners to the cups for guessing */
         function addGuessListeners() {
             cups.forEach(cup => {
-                cup.addEventListener('click', handleGuess); // Use 'click' - works for touch too
+                cup.addEventListener('click', handleGuess); // Use 'click' - works for touch too on modern browsers
                 cup.style.cursor = 'pointer'; // Change cursor to indicate clickable
             });
         }
@@ -506,8 +605,15 @@
             if(liftedCup) {
                 liftedCup.classList.remove('lifted');
             }
+            // Hide the gift as well
+            gift.classList.remove('visible');
+
             // Short delay before starting the next round for smoother transition
-            setTimeout(setupNewRound, 150);
+            // Wait for cup lowering and gift fading
+            setTimeout(() => {
+                gift.style.display = 'none'; // Ensure gift is hidden structurally
+                setupNewRound();
+            }, Math.max(liftTime, giftFadeTime) + 50); // Wait for animations + buffer
         }
 
 
